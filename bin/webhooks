@@ -32,11 +32,9 @@ opts          = optionParser.parse(process.argv.slice(3));
 
 switch (process.argv[2]) {
 	case "start":
-		console.log(opts);
   		for (var key in opts) {
   			if (key === "arguments") continue;
   			if (opts[key]) app[key] = opts[key];
-  			if (key === "type") console.log(app.type);
   		}
 
   		console.info("Listening on :" + app.port);
