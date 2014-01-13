@@ -67,8 +67,10 @@ class Webhook
 
     res.send 200
 
+  sane: (value) -> /^[a-zA-Z0-9 _\-+=,.;:'"?!@#%\^&*()<>\[\]{}|\\/\t]+$/.test value
+
   executeShellScript: (dir, params, autocb) =>
-    textParams  = ("#{key}=\"#{value}\"" for key, value of params)
+    textParams  = ("#{key}=\"#{value}\"" for key, value of params when @sane value)
     cmdWithArgs = @script + " " + textParams.join " "
     await exec cmdWithArgs, {cwd: dir}, defer err
     err

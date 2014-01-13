@@ -143,6 +143,10 @@
       });
     };
 
+    Webhook.prototype.sane = function(value) {
+      return /^[a-zA-Z0-9 _\-+=,.;:'"?!@#%\^&*()<>\[\]{}|\\/\t]+$/.test(value);
+    };
+
     Webhook.prototype.executeShellScript = function(dir, params, autocb) {
       var cmdWithArgs, err, key, textParams, value, ___iced_passed_deferral, __iced_deferrals, __iced_k,
         _this = this;
@@ -153,7 +157,9 @@
         _results = [];
         for (key in params) {
           value = params[key];
-          _results.push("" + key + "=\"" + value + "\"");
+          if (this.sane(value)) {
+            _results.push("" + key + "=\"" + value + "\"");
+          }
         }
         return _results;
       }).call(this);
