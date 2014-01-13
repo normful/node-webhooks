@@ -1,8 +1,8 @@
 "use strict"
 
 express  = require "express"
-domain   = require "domain"
 fs       = require "fs"
+http     = require "http"
 path     = require "path"
 {exec}   = require "child_process"
 
@@ -25,11 +25,26 @@ class Webhooks
     @[key]    = options[key] for key of @defaults
     @app    or= express()
 
+  lastRoute: (req, res, next) ->
+    res.status 404
+    if req.accepts('json') then res.send error: 'Not found'
+    else                        res.type('txt').send 'Not found'
+
+  errorMiddleware: (err, req, res, next) ->
+    res.status err.status || 500
+    res.send http.STATUS_CODES[res.status]
+
   start: ->
     @app.use express.bodyParser()
     @app.use express.errorHandler()
     @app.use express.logger()
+
+    @app.use @app.router
     @app.post (path.join "/", @namespace, ":hook"), @listenForWebhook
+
+    @app.use @lastRoute
+    @app.use @errorMiddleware
+
     @app.listen @port
 
   listenForWebhook: (req, res, next) =>
