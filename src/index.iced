@@ -1,8 +1,6 @@
 "use strict"
 
 express  = require "express"
-crypto   = require "crypto"
-assert   = require "assert"
 domain   = require "domain"
 fs       = require "fs"
 path     = require "path"
@@ -14,16 +12,13 @@ extend = (target, sources...) ->
   target
 
 
-class Webhook
+class Webhooks
   defaults:
-    ALGORITHM: "cast5-cbc"
-    FORMAT:    "base64"
-    namespace: ""
-    port:      process.env.PORT or 10010
+    namespace: "webhooks"
+    port:      10010
     script:    "./webhook"
-    secret:    process.env.WH_SECRET or "keyboard cat"
-    type:      "shell"
-    basedir:   process.cwd()
+    type:      "node"
+    basedir:   path.join process.cwd(), "hooks"
 
   constructor: (options = {}) ->
     options   = extend {}, @defaults, options
@@ -34,22 +29,13 @@ class Webhook
     @app.use express.bodyParser()
     @app.use express.errorHandler()
     @app.use express.logger()
-    @app.post (path.join "/", @namespace, ":hash"), @listenForWebhook
+    @app.post (path.join "/", @namespace, ":hook"), @listenForWebhook
     @app.listen @port
 
   listenForWebhook: (req, res, next) =>
-    unless req.params.hash
-      console.warn "missing hash", req.params.hash
+    unless dir = req.params.hook
+      console.warn "missing hook", req.params.hook
       return res.send 404
-
-    try
-      dir = @decrypt req.params.hash, @secret
-    catch err
-      if err.toString().match /DecipherFinal/
-        console.warn "could not decipher", req.params.hash
-        return res.send 404
-      else
-        return next err
 
     fullpath = path.join @basedir, dir
     await fs.exists fullpath, defer exists
@@ -81,26 +67,5 @@ class Webhook
     await mod.hook params, defer err
     err
 
-  getId: -> os.hostname() + @cwd
 
-  encrypt: (id, password) ->
-    assert.ok id
-    assert.ok password
-    projectCipher = crypto.createCipher @ALGORITHM, password
-    final  = projectCipher.update id, "utf8", @FORMAT
-    final += projectCipher.final @FORMAT
-    final
-
-  decrypt: (encrypted, password) ->
-    assert.ok encrypted
-    assert.ok password
-    projectDecipher = crypto.createDecipher @ALGORITHM, password
-    final  = projectDecipher.update encrypted, @FORMAT, "utf8"
-    final += projectDecipher.final "utf8"
-    final
-
-  hashDir: (dir = "./", secret = @secret) ->
-    encodeURIComponent @encrypt dir, secret
-
-
-module.exports = Webhook
+module.exports = Webhooks
