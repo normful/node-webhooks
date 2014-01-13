@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 'use strict'
 
-var app      = require('../'),
-    optparse = require("iced-coffee-script/lib/coffee-script/optparse"),
+var Webhook  = require('../'),
+    Optparse = require("iced-coffee-script/lib/coffee-script/optparse"),
+    defaults = Webhook.prototype.defaults,
     BANNER,
     SWITCHES,
     optionParser,
     opts,
-    usage;
+    app;
 
 // The help banner that is printed in conjunction with `-h`/`--help`.
 BANNER = [
@@ -19,26 +20,21 @@ BANNER = [
 
 // The list of all the valid option flags that `coffee` knows how to handle.
 SWITCHES = [
-  ['-k', '--secret [SECRET]',          'secret for URL hash (default: "' + app.secret + '")'],
+  ['-k', '--secret [SECRET]',          'secret for URL hash (default: "' + defaults.secret + '")'],
   ['-n', '--namespace [NAMESPACE]',       'namespace for URL hash (default: none)'],
-  ['-p', '--port [PORT]',            'port for webhook listener (default: ' + app.port + ')'],
-  ['-s', '--script [SCRIPT]',          'filename of local script (default: ' + app.script + ')'],
-  ['-t', '--type [TYPE]',            'type of local script (node or shell) (default: ' + app.type + ')']
+  ['-p', '--port [PORT]',            'port for webhook listener (default: ' + defaults.port + ')'],
+  ['-s', '--script [SCRIPT]',          'filename of local script (default: ' + defaults.script + ')'],
+  ['-t', '--type [TYPE]',            'type of local script (node or shell) (default: ' + defaults.type + ')']
 ];
 
-optionParser  = new optparse.OptionParser(SWITCHES, BANNER);
+optionParser  = new Optparse.OptionParser(SWITCHES, BANNER);
 opts          = optionParser.parse(process.argv.slice(3));
-
+app           = new Webhook(opts);
 
 switch (process.argv[2]) {
 	case "start":
-  		for (var key in opts) {
-  			if (key === "arguments") continue;
-  			if (opts[key]) app[key] = opts[key];
-  		}
-
   		console.info("Listening on :" + app.port);
-  		app.listen(app.port);
+  		app.start()
   		break;
 
   	case "hash":
