@@ -2,9 +2,6 @@
   "name": "webhooks",
   "version": "0.0.4",
   "main": "index.js",
-  "bin": {
-    "webhooks": "./bin/webhooks"
-  },
   "scripts": {
     "test": "./node_modules/.bin/mocha test/*_test.js"
   },
