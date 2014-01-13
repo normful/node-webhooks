@@ -38,7 +38,7 @@ switch (process.argv[2]) {
   		break;
 
   	case "hash":
-		console.info(app.hashCwd());
+		console.info(app.hashDir(process.argv[3] || "./"));
 		break;
 
   	default:

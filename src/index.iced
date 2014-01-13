@@ -23,18 +23,18 @@ class Webhook
     script:    "./webhook"
     secret:    process.env.WH_SECRET or "keyboard cat"
     type:      "shell"
+    basedir:   process.cwd()
 
   constructor: (options = {}) ->
     options   = extend {}, @defaults, options
     @[key]    = options[key] for key of @defaults
     @app    or= express()
-    @cwd    or= process.cwd()
 
   start: ->
     @app.use express.bodyParser()
     @app.use express.errorHandler()
     @app.use express.logger()
-    @app.post "#{@namespace}/:hash", @listenForWebhook
+    @app.post (path.join "/", @namespace, ":hash"), @listenForWebhook
     @app.listen @port
 
   listenForWebhook: (req, res, next) =>
@@ -51,9 +51,10 @@ class Webhook
       else
         return next err
 
-    await fs.exists dir, defer exists
+    fullpath = path.join @basedir, dir
+    await fs.exists fullpath, defer exists
     unless exists
-      console.warn "directory does not exist!", dir
+      console.warn "directory does not exist!", fullpath
       return res.send 404
 
     console.info dir
@@ -62,7 +63,7 @@ class Webhook
       when "node" then @executeNodeModule
       else @executeShellScript
 
-    await executeHook dir, req.body, defer err
+    await executeHook fullpath, req.body, defer err
     return next err if err
 
     res.send 200
@@ -98,8 +99,8 @@ class Webhook
     final += projectDecipher.final "utf8"
     final
 
-  hashCwd: (cwd = @cwd, secret = @secret) ->
-    encodeURIComponent @encrypt cwd, secret
+  hashDir: (dir = "./", secret = @secret) ->
+    encodeURIComponent @encrypt dir, secret
 
 
 module.exports = Webhook

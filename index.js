@@ -43,7 +43,8 @@
       port: process.env.PORT || 10010,
       script: "./webhook",
       secret: process.env.WH_SECRET || "keyboard cat",
-      type: "shell"
+      type: "shell",
+      basedir: process.cwd()
     };
 
     function Webhook(options) {
@@ -59,19 +60,18 @@
         this[key] = options[key];
       }
       this.app || (this.app = express());
-      this.cwd || (this.cwd = process.cwd());
     }
 
     Webhook.prototype.start = function() {
       this.app.use(express.bodyParser());
       this.app.use(express.errorHandler());
       this.app.use(express.logger());
-      this.app.post("" + this.namespace + "/:hash", this.listenForWebhook);
+      this.app.post(path.join("/", this.namespace, ":hash"), this.listenForWebhook);
       return this.app.listen(this.port);
     };
 
     Webhook.prototype.listenForWebhook = function(req, res, next) {
-      var dir, err, executeHook, exists, ___iced_passed_deferral, __iced_deferrals, __iced_k,
+      var dir, err, executeHook, exists, fullpath, ___iced_passed_deferral, __iced_deferrals, __iced_k,
         _this = this;
       __iced_k = __iced_k_noop;
       ___iced_passed_deferral = iced.findDeferral(arguments);
@@ -90,24 +90,25 @@
           return next(err);
         }
       }
+      fullpath = path.join(this.basedir, dir);
       (function(__iced_k) {
         __iced_deferrals = new iced.Deferrals(__iced_k, {
           parent: ___iced_passed_deferral,
           filename: "src/index.iced",
           funcname: "Webhook.listenForWebhook"
         });
-        fs.exists(dir, __iced_deferrals.defer({
+        fs.exists(fullpath, __iced_deferrals.defer({
           assign_fn: (function() {
             return function() {
               return exists = arguments[0];
             };
           })(),
-          lineno: 53
+          lineno: 54
         }));
         __iced_deferrals._fulfill();
       })(function() {
         if (!exists) {
-          console.warn("directory does not exist!", dir);
+          console.warn("directory does not exist!", fullpath);
           return res.send(404);
         }
         console.info(dir);
@@ -125,13 +126,13 @@
             filename: "src/index.iced",
             funcname: "Webhook.listenForWebhook"
           });
-          executeHook(dir, req.body, __iced_deferrals.defer({
+          executeHook(fullpath, req.body, __iced_deferrals.defer({
             assign_fn: (function() {
               return function() {
                 return err = arguments[0];
               };
             })(),
-            lineno: 64
+            lineno: 65
           }));
           __iced_deferrals._fulfill();
         })(function() {
@@ -178,7 +179,7 @@
               return err = arguments[0];
             };
           })(),
-          lineno: 74
+          lineno: 75
         }));
         __iced_deferrals._fulfill();
       })(function() {
@@ -205,7 +206,7 @@
               return err = arguments[0];
             };
           })(),
-          lineno: 79
+          lineno: 80
         }));
         __iced_deferrals._fulfill();
       })(function() {
@@ -238,14 +239,14 @@
       return final;
     };
 
-    Webhook.prototype.hashCwd = function(cwd, secret) {
-      if (cwd == null) {
-        cwd = this.cwd;
+    Webhook.prototype.hashDir = function(dir, secret) {
+      if (dir == null) {
+        dir = "./";
       }
       if (secret == null) {
         secret = this.secret;
       }
-      return encodeURIComponent(this.encrypt(cwd, secret));
+      return encodeURIComponent(this.encrypt(dir, secret));
     };
 
     return Webhook;
