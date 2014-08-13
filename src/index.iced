@@ -20,10 +20,47 @@ class Webhooks
     type:      "node"
     basedir:   path.join process.cwd(), "hooks"
 
-  constructor: (options = {}) ->
+  constructor: (hooks, options = {}) ->
     options   = extend {}, @defaults, options
     @[key]    = options[key] for key of @defaults
     @app    or= express()
+    @loadHooks hooks
+
+  loadHooks: (hooksToLoad = {}, autocb = ->) ->
+    throw new Error "hooks must be specified" unless (Object.keys hooksToLoad).length
+
+    @hooks = {}
+    await
+      for hook, hookopts of hooksToLoad
+        type = hookopts.type or @type
+        dir  = hookopts.dir or hook
+        loc  = path.join @basedir, dir, @script
+
+        if hookopts.hook or hookopts = hookopts.mod
+          @hooks[dir] = hookopts
+        else
+          @loadHook type, loc, defer hook
+          @hooks[dir] = hook
+
+    console.log "hooks loaded"
+
+  loadHook: (type, loc, autocb) ->
+    error = (loc) -> throw new Error "unable to load webhook module at #{loc}"
+
+    switch type
+      when "node"
+        try
+          mod = require loc
+          console.log "loaded node webhook at #{loc}"
+        catch e
+          error loc
+        finally
+          return mod
+      else
+        await fs.exists loc, defer exists
+        unless exists then return error loc
+        console.log "loaded shell webhook at #{loc}"
+        loc
 
   lastRoute: (req, res, next) ->
     res.status 404
@@ -48,37 +85,28 @@ class Webhooks
     @app.listen @port
 
   listenForWebhook: (req, res, next) =>
-    unless dir = req.params.hook
+    unless dir = req.params.hook and hook = hooks[dir]
       console.warn "missing hook", req.params.hook
       return res.send 404
 
-    fullpath = path.join @basedir, dir
-    await fs.exists fullpath, defer exists
-    unless exists
-      console.warn "directory does not exist!", fullpath
-      return res.send 404
+    executeHook = switch typeof hook
+      when "string" then @executeShellScript
+      else @executeNodeModule
 
-    console.info dir
-
-    executeHook = switch @type
-      when "node" then @executeNodeModule
-      else @executeShellScript
-
-    await executeHook fullpath, req.body, defer err
+    await executeHook hook, req.body, defer err
     return next err if err
 
     res.send 200
 
   sane: (value) -> /^[a-zA-Z0-9 _\-+=,.;:'"?!@#%\^&*()<>\[\]{}|\\/\t]+$/.test value
 
-  executeShellScript: (dir, params, autocb) =>
+  executeShellScript: (path, params, autocb) =>
     textParams  = ("#{key}=\"#{value}\"" for key, value of params when @sane value)
-    cmdWithArgs = @script + " " + textParams.join " "
-    await exec cmdWithArgs, {cwd: dir}, defer err
+    cmdWithArgs = path + " " + textParams.join " "
+    await exec cmdWithArgs, {cwd: path.dirname path}, defer err
     err
 
-  executeNodeModule: (dir, params, autocb) =>
-    mod = require path.join dir, @script
+  executeNodeModule: (mod, params, autocb) =>
     await mod.hook params, defer err
     err
 
