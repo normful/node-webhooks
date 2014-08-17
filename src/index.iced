@@ -1,10 +1,11 @@
-"use strict"
-
-express  = require "express"
-fs       = require "fs"
-http     = require "http"
-path     = require "path"
-{exec}   = require "child_process"
+express      = require "express"
+bodyParser   = require "body-parser"
+errorhandler = require "errorhandler"
+morgan       = require "morgan"
+fs           = require "fs"
+http         = require "http"
+path         = require "path"
+{exec}       = require "child_process"
 
 
 extend = (target, sources...) ->
@@ -63,20 +64,18 @@ class Webhooks
         loc
 
   lastRoute: (req, res, next) ->
-    res.status 404
-    if req.accepts('json') then res.send error: 'Not found'
-    else                        res.type('txt').send 'Not found'
+    if req.accepts('json') then res.send 404, error: "Not found"
+    else                        res.type('txt').send 404, "Not found"
 
   errorMiddleware: (err, req, res, next) ->
-    res.status err.status || 500
-    res.send http.STATUS_CODES[res.status]
+    res.send err.status or 500, http.STATUS_CODES[res.status]
 
   start: ->
-    @app.use express.bodyParser()
-    @app.use express.errorHandler()
-    @app.use express.logger()
+    @app.use bodyParser.json()
+    @app.use bodyParser.urlencoded extended: false
+    @app.use errorhandler()
+    @app.use morgan "short"
 
-    @app.use @app.router
     @app.post (path.join "/", @namespace, ":hook"), @listenForWebhook
 
     @app.use @lastRoute
@@ -87,7 +86,7 @@ class Webhooks
   listenForWebhook: (req, res, next) =>
     unless dir = req.params.hook and hook = hooks[dir]
       console.warn "missing hook", req.params.hook
-      return res.send 404
+      return res.send 404, "Not found"
 
     executeHook = switch typeof hook
       when "string" then @executeShellScript
@@ -96,7 +95,7 @@ class Webhooks
     await executeHook hook, req.body, defer err
     return next err if err
 
-    res.send 200
+    res.send 200, "OK"
 
   sane: (value) -> /^[a-zA-Z0-9 _\-+=,.;:'"?!@#%\^&*()<>\[\]{}|\\/\t]+$/.test value
 
