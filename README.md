@@ -13,11 +13,34 @@ node-webhooks for apigee
 The following options can be passed to the Webhook constructor:
 
 ```coffee
-defaults:
+hooks:
+  "urlPath":
+    "type": ["node"|"shell"] (optional)
+    "dir": "localPath (relative to baseDir)" (optional)
+    "mod": [loaded CommonJS module with hook fn] (optional)
+
+# For default type and urlPath == localPath, use: "urlPath": true
+
+options:
   namespace: "webhooks"
   script:    "./webhook"
   type:      "node"
   basedir:   path.join process.cwd(), "hooks"
+```
+
+#### Example:
+```coffee
+hooks =
+  "redmine": true
+  "pivotal-asana":
+    mod: new (require "./hooks/pivotal-asana/webhook") projectMap, "MobileApps"
+  "asana-pivotal":
+    mod: new (require "./hooks/asana-pivotal/webhook") projectMap, "MobileApps"
+
+basedir = path.join process.cwd(), "hooks"
+
+app = new Webhooks hooks, basedir: basedir
+app.start()
 ```
 
 With default options, the server will listen at:
