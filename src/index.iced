@@ -37,30 +37,34 @@ class Webhooks
         dir  = hookopts.dir or hook
         loc  = path.join @basedir, dir, @script
 
+        console.log "hook at #{path.join "/", @namespace, dir}"
+
         if hookopts.hook or hookopts = hookopts.mod
           @hooks[dir] = hookopts
         else
           @loadHook type, loc, defer hook
+          console.log "loading #{dir}"
           @hooks[dir] = hook
 
     console.log "hooks loaded"
 
   loadHook: (type, loc, autocb) ->
-    error = (loc) -> throw new Error "unable to load webhook module at #{loc}"
+    error = (loc) -> throw new Error "unable to load webhook module from #{loc}"
 
     switch type
       when "node"
         try
           mod = require loc
-          console.log "loaded node webhook at #{loc}"
+          console.log "loaded node webhook from #{loc}"
         catch e
+          console.log e
           error loc
         finally
           return mod
       else
         await fs.exists loc, defer exists
         unless exists then return error loc
-        console.log "loaded shell webhook at #{loc}"
+        console.log "loaded shell webhook from #{loc}"
         loc
 
   lastRoute: (req, res, next) ->
@@ -68,6 +72,7 @@ class Webhooks
     else                        res.type('txt').send 404, "Not found"
 
   errorMiddleware: (err, req, res, next) ->
+    console.log err
     res.send err.status or 500, http.STATUS_CODES[res.status]
 
   start: ->
@@ -84,8 +89,9 @@ class Webhooks
     @app.listen @port
 
   listenForWebhook: (req, res, next) =>
-    unless dir = req.params.hook and hook = hooks[dir]
-      console.warn "missing hook", req.params.hook
+    dir = req.params.hook
+    unless dir and hook = @hooks[dir]
+      console.warn "missing hook", dir
       return res.send 404, "Not found"
 
     executeHook = switch typeof hook

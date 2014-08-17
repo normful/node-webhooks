@@ -99,6 +99,7 @@
                 })(),
                 lineno: 44
               }));
+              console.log("loading " + dir);
               _this.hooks[dir] = hook;
             }
           }
@@ -117,15 +118,16 @@
       __iced_k = autocb;
       ___iced_passed_deferral = iced.findDeferral(arguments);
       error = function(loc) {
-        throw new Error("unable to load webhook module at " + loc);
+        throw new Error("unable to load webhook module from " + loc);
       };
       switch (type) {
         case "node":
           try {
             mod = require(loc);
-            console.log("loaded node webhook at " + loc);
+            console.log("loaded node webhook from " + loc);
           } catch (_error) {
             e = _error;
+            console.log(e);
             error(loc);
           } finally {
             autocb(mod);
@@ -146,7 +148,7 @@
                     return exists = arguments[0];
                   };
                 })(),
-                lineno: 61
+                lineno: 64
               }));
               __iced_deferrals._fulfill();
             });
@@ -156,7 +158,7 @@
                 autocb(error(loc));
                 return;
               }
-              console.log("loaded shell webhook at " + loc);
+              console.log("loaded shell webhook from " + loc);
               return __iced_k(loc);
             };
           })(this));
@@ -174,6 +176,7 @@
     };
 
     Webhooks.prototype.errorMiddleware = function(err, req, res, next) {
+      console.log(err);
       return res.send(err.status || 500, http.STATUS_CODES[res.status]);
     };
 
@@ -194,8 +197,9 @@
       var dir, err, executeHook, hook, ___iced_passed_deferral, __iced_deferrals, __iced_k;
       __iced_k = __iced_k_noop;
       ___iced_passed_deferral = iced.findDeferral(arguments);
-      if (!(dir = req.params.hook && (hook = hooks[dir]))) {
-        console.warn("missing hook", req.params.hook);
+      dir = req.params.hook;
+      if (!(dir && (hook = this.hooks[dir]))) {
+        console.warn("missing hook", dir);
         return res.send(404, "Not found");
       }
       executeHook = (function() {
@@ -219,7 +223,7 @@
                 return err = arguments[0];
               };
             })(),
-            lineno: 97
+            lineno: 100
           }));
           __iced_deferrals._fulfill();
         });
@@ -268,7 +272,7 @@
                 return err = arguments[0];
               };
             })(),
-            lineno: 107
+            lineno: 110
           }));
           __iced_deferrals._fulfill();
         });
@@ -297,7 +301,7 @@
                 return err = arguments[0];
               };
             })(),
-            lineno: 111
+            lineno: 114
           }));
           __iced_deferrals._fulfill();
         });
