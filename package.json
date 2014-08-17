@@ -1,6 +1,6 @@
 {
   "name": "webhooks",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "main": "index.js",
   "scripts": {
     "test": "./node_modules/.bin/mocha test/*_test.js"
@@ -24,7 +24,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/timoxley/node-webhooks.git"
+    "url": "git://github.com/doublerebel/node-webhooks.git"
   },
-  "author": "Tim Oxley"
+  "contributors": [
+    "Tim Oxley",
+    "Charles Phillips <charles@doublerebel.com>"
+  ]
 }
