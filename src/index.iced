@@ -16,7 +16,7 @@ extend = (target, sources...) ->
 class Webhooks
   defaults:
     namespace: "webhooks"
-    port:      10010
+    port:      process.env.WEBHOOK_PORT || 10010
     script:    "./webhook"
     type:      "node"
     basedir:   path.join process.cwd(), "hooks"
