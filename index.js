@@ -38,7 +38,7 @@ extend = function() {
 Webhooks = (function() {
   Webhooks.prototype.defaults = {
     namespace: "webhooks",
-    port: process.env.WEBHOOK_PORT || 10010,
+    port: Number(process.env.WEBHOOK_PORT),
     script: "./webhook",
     type: "node",
     basedir: path.join(process.cwd(), "hooks")
