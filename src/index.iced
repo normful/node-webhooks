@@ -1,12 +1,11 @@
-"use strict"
-
-express  = require "express"
-crypto   = require "crypto"
-assert   = require "assert"
-domain   = require "domain"
-fs       = require "fs"
-path     = require "path"
-{exec}   = require "child_process"
+express      = require "express"
+bodyParser   = require "body-parser"
+errorhandler = require "errorhandler"
+morgan       = require "morgan"
+fs           = require "fs"
+http         = require "http"
+path         = require "path"
+{exec}       = require "child_process"
 
 
 extend = (target, sources...) ->
@@ -14,93 +13,107 @@ extend = (target, sources...) ->
   target
 
 
-class Webhook
+class Webhooks
   defaults:
-    ALGORITHM: "cast5-cbc"
-    FORMAT:    "base64"
-    namespace: ""
-    port:      process.env.PORT or 10010
+    namespace: "webhooks"
+    port:      10010
     script:    "./webhook"
-    secret:    process.env.WH_SECRET or "keyboard cat"
-    type:      "shell"
-    basedir:   process.cwd()
+    type:      "node"
+    basedir:   path.join process.cwd(), "hooks"
 
-  constructor: (options = {}) ->
+  constructor: (hooks, options = {}) ->
     options   = extend {}, @defaults, options
     @[key]    = options[key] for key of @defaults
     @app    or= express()
+    @loadHooks hooks
+
+  loadHooks: (hooksToLoad = {}, autocb = ->) ->
+    throw new Error "hooks must be specified" unless (Object.keys hooksToLoad).length
+
+    @hooks = {}
+    await
+      for hook, hookopts of hooksToLoad
+        type = hookopts.type or @type
+        dir  = hookopts.dir or hook
+        loc  = path.join @basedir, dir, @script
+
+        console.log "hook at #{path.join "/", @namespace, dir}"
+
+        if hookopts.hook or hookopts = hookopts.mod
+          @hooks[dir] = hookopts
+        else
+          @loadHook type, loc, defer hook
+          console.log "loading #{dir}"
+          @hooks[dir] = hook
+
+    console.log "hooks loaded"
+
+  loadHook: (type, loc, autocb) ->
+    error = (loc) -> throw new Error "unable to load webhook module from #{loc}"
+
+    switch type
+      when "node"
+        try
+          mod = require loc
+          console.log "loaded node webhook from #{loc}"
+        catch e
+          console.log e
+          error loc
+        finally
+          return mod
+      else
+        await fs.exists loc, defer exists
+        unless exists then return error loc
+        console.log "loaded shell webhook from #{loc}"
+        loc
+
+  lastRoute: (req, res, next) ->
+    if req.accepts('json') then res.send 404, error: "Not found"
+    else                        res.type('txt').send 404, "Not found"
+
+  errorMiddleware: (err, req, res, next) ->
+    console.log err
+    res.send err.status or 500, http.STATUS_CODES[res.status]
 
   start: ->
-    @app.use express.bodyParser()
-    @app.use express.errorHandler()
-    @app.use express.logger()
-    @app.post (path.join "/", @namespace, ":hash"), @listenForWebhook
+    @app.use bodyParser.json()
+    @app.use bodyParser.urlencoded extended: false
+    @app.use errorhandler()
+    @app.use morgan "short"
+
+    @app.post (path.join "/", @namespace, ":hook"), @listenForWebhook
+
+    @app.use @lastRoute
+    @app.use @errorMiddleware
+
     @app.listen @port
 
   listenForWebhook: (req, res, next) =>
-    unless req.params.hash
-      console.warn "missing hash", req.params.hash
-      return res.send 404
+    dir = req.params.hook
+    unless dir and hook = @hooks[dir]
+      console.warn "missing hook", dir
+      return res.send 404, "Not found"
 
-    try
-      dir = @decrypt req.params.hash, @secret
-    catch err
-      if err.toString().match /DecipherFinal/
-        console.warn "could not decipher", req.params.hash
-        return res.send 404
-      else
-        return next err
+    executeHook = switch typeof hook
+      when "string" then @executeShellScript
+      else @executeNodeModule
 
-    fullpath = path.join @basedir, dir
-    await fs.exists fullpath, defer exists
-    unless exists
-      console.warn "directory does not exist!", fullpath
-      return res.send 404
-
-    console.info dir
-
-    executeHook = switch @type
-      when "node" then @executeNodeModule
-      else @executeShellScript
-
-    await executeHook fullpath, req.body, defer err
+    await executeHook hook, req.body, defer err
     return next err if err
 
-    res.send 200
+    res.send 200, "OK"
 
   sane: (value) -> /^[a-zA-Z0-9 _\-+=,.;:'"?!@#%\^&*()<>\[\]{}|\\/\t]+$/.test value
 
-  executeShellScript: (dir, params, autocb) =>
+  executeShellScript: (path, params, autocb) =>
     textParams  = ("#{key}=\"#{value}\"" for key, value of params when @sane value)
-    cmdWithArgs = @script + " " + textParams.join " "
-    await exec cmdWithArgs, {cwd: dir}, defer err
+    cmdWithArgs = path + " " + textParams.join " "
+    await exec cmdWithArgs, {cwd: path.dirname path}, defer err
     err
 
-  executeNodeModule: (dir, params, autocb) =>
-    mod = require path.join dir, @script
+  executeNodeModule: (mod, params, autocb) =>
     await mod.hook params, defer err
     err
 
-  getId: -> os.hostname() + @cwd
 
-  encrypt: (id, password) ->
-    assert.ok id
-    assert.ok password
-    projectCipher = crypto.createCipher @ALGORITHM, password
-    final  = projectCipher.update id, "utf8", @FORMAT
-    final += projectCipher.final @FORMAT
-    final
-
-  decrypt: (encrypted, password) ->
-    assert.ok encrypted
-    assert.ok password
-    projectDecipher = crypto.createDecipher @ALGORITHM, password
-    final  = projectDecipher.update encrypted, @FORMAT, "utf8"
-    final += projectDecipher.final "utf8"
-    final
-
-  hashDir: (dir = "./", secret = @secret) ->
-    encodeURIComponent @encrypt dir, secret
-
-
-module.exports = Webhook
+module.exports = Webhooks
