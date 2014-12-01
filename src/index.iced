@@ -81,7 +81,7 @@ class Webhooks
     @app.use errorhandler()
     @app.use morgan "short"
 
-    @app.post (path.join "/", @namespace, ":hook"), @listenForWebhook
+    @app.post (path.join "/", @namespace, ":hook*"), @listenForWebhook
 
     @app.use @lastRoute
     @app.use @errorMiddleware
@@ -98,7 +98,7 @@ class Webhooks
       when "string" then @executeShellScript
       else @executeNodeModule
 
-    await executeHook hook, req.body, defer err
+    await executeHook hook, req, defer err
     return next err if err
 
     res.send 200, "OK"
