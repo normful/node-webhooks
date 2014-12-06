@@ -75,7 +75,7 @@ class Webhooks
     console.log err
     res.send err.status or 500, http.STATUS_CODES[res.status]
 
-  start: ->
+  init: ->
     @app.use bodyParser.json()
     @app.use bodyParser.urlencoded extended: false
     @app.use errorhandler()
@@ -85,8 +85,6 @@ class Webhooks
 
     @app.use @lastRoute
     @app.use @errorMiddleware
-
-    @app.listen @port
 
   listenForWebhook: (req, res, next) =>
     dir = req.params.hook

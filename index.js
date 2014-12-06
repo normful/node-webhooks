@@ -179,7 +179,7 @@ Webhooks = (function() {
     return res.send(err.status || 500, http.STATUS_CODES[res.status]);
   };
 
-  Webhooks.prototype.start = function() {
+  Webhooks.prototype.init = function() {
     this.app.use(bodyParser.json());
     this.app.use(bodyParser.urlencoded({
       extended: false
@@ -188,8 +188,7 @@ Webhooks = (function() {
     this.app.use(morgan("short"));
     this.app.post(path.join("/", this.namespace, ":hook*"), this.listenForWebhook);
     this.app.use(this.lastRoute);
-    this.app.use(this.errorMiddleware);
-    return this.app.listen(this.port);
+    return this.app.use(this.errorMiddleware);
   };
 
   Webhooks.prototype.listenForWebhook = function(req, res, next) {
@@ -222,7 +221,7 @@ Webhooks = (function() {
               return err = arguments[0];
             };
           })(),
-          lineno: 100
+          lineno: 98
         }));
         __iced_deferrals._fulfill();
       });
@@ -271,7 +270,7 @@ Webhooks = (function() {
               return err = arguments[0];
             };
           })(),
-          lineno: 110
+          lineno: 108
         }));
         __iced_deferrals._fulfill();
       });
@@ -300,7 +299,7 @@ Webhooks = (function() {
               return err = arguments[0];
             };
           })(),
-          lineno: 114
+          lineno: 112
         }));
         __iced_deferrals._fulfill();
       });
